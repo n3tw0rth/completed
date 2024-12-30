@@ -14,7 +14,10 @@ struct Args {
     pub run: Vec<String>,
 
     #[arg(short, long)]
-    profile: String,
+    profile: Option<String>,
+
+    #[arg(short, long)]
+    triggers: Option<String>,
 
     #[arg(long, short, action)]
     verbose: bool,
