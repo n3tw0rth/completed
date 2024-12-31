@@ -1,6 +1,3 @@
-use dbus::blocking::Connection;
-use std::thread;
-use std::time::Duration;
 use std::{env, process::Command};
 
 use clap::Parser;
@@ -8,13 +5,11 @@ use clap::Parser;
 mod constants;
 mod helpers;
 mod notification;
+mod send_emails;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None,arg_required_else_help = true,trailing_var_arg=true)]
 #[clap(
-    name = "My Application",
-    version = "1.0",
-    author = "Jason M.",
     about = constants::ABOUT_TEXT,
 )]
 struct Args {
@@ -25,13 +20,17 @@ struct Args {
     profile: Option<String>,
 
     #[arg(short, long)]
-    triggers: Option<String>,
+    name: Option<String>,
+
+    #[arg(short, long)]
+    triggers: Option<Vec<String>>,
 
     #[arg(long, short, action)]
     verbose: bool,
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let mut args = Args::parse();
 
     helpers::handle_ctrlc();

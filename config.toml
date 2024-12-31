@@ -1,0 +1,20 @@
+[profile.default]
+desktop = true
+mail = true
+
+
+[mail]
+serivce = "mailersend"
+
+
+[mail.mailersend]
+apikey = ""
+from = ""
+to = ""
+
+
+[mail.smtp]
+from = ""
+to  = ""
+host = ""
+

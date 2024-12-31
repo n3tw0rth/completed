@@ -7,4 +7,5 @@ edition = "2021"
 anyhow = "1.0.95"
 clap = { version = "4.5.23", features = ["derive"] }
 ctrlc = "3.4.5"
-dbus = "0.9.7"
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1.42.0", features = ["full"] }
