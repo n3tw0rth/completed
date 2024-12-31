@@ -5,12 +5,20 @@ use std::{env, process::Command};
 
 use clap::Parser;
 
+mod constants;
 mod helpers;
 mod notification;
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None,trailing_var_arg=true)]
+#[command(version, about, long_about = None,arg_required_else_help = true,trailing_var_arg=true)]
+#[clap(
+    name = "My Application",
+    version = "1.0",
+    author = "Jason M.",
+    about = constants::ABOUT_TEXT,
+)]
 struct Args {
+    #[clap(required = true)]
     pub run: Vec<String>,
 
     #[arg(short, long)]
