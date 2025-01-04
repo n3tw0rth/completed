@@ -1,20 +1,14 @@
-[profile.default]
-desktop = true
-mail = true
+[email.default]
+from = "notfier@trial-jpzkmgqjpwyl059v.mlsender.net"
+to = "samfernando1993@gmai.com"
+api_key = "mlsn.77afe80e65161674a1fc9809e1f69d5865c525120108f21a32f29b16a7b12d92"
+port = 568
+host = "smtp.com"
 
+[profiles.default]
+print_output = true
+sendto = ["email.default"]
 
-[mail]
-serivce = "mailersend"
-
-
-[mail.mailersend]
-apikey = ""
-from = ""
-to = ""
-
-
-[mail.smtp]
-from = ""
-to  = ""
-host = ""
-
+[gchat.default]
+api_key = ""
+webhook = ""

@@ -1,6 +1,11 @@
+use std::collections::HashMap;
 use std::{env, process::Command};
 
 use clap::Parser;
+use serde::Deserialize;
+use tokio::fs::File;
+use tokio::io::{self, AsyncReadExt};
+use toml::de::from_str;
 
 mod constants;
 mod helpers;
@@ -17,7 +22,8 @@ struct Args {
     pub run: Vec<String>,
 
     #[arg(short, long)]
-    profile: Option<String>,
+    #[clap(default_value = "default")]
+    profiles: Option<Vec<String>>,
 
     #[arg(short, long)]
     name: Option<String>,
@@ -29,17 +35,47 @@ struct Args {
     verbose: bool,
 }
 
+#[derive(Deserialize, Debug)]
+struct Config {
+    email: HashMap<String, EmailConfig>,
+    gchat: Option<HashMap<String, GChatConfig>>,
+    profiles: HashMap<String, ProfileConfig>,
+}
+#[derive(Deserialize, Debug)]
+struct ProfileConfig {
+    print_output: Option<bool>,
+    sendto: Vec<String>,
+}
+#[derive(Deserialize, Debug)]
+struct GChatConfig {
+    webhook: String,
+    api_key: String,
+}
+#[derive(Deserialize, Debug)]
+struct EmailConfig {
+    from: String,
+    to: String,
+    api_key: Option<String>,
+    port: u16,
+    host: String,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let mut args = Args::parse();
 
-    helpers::handle_ctrlc();
+    let config = helpers::app_state().await?;
 
-    let _ = notification::send_notification(
+    // helpers::handle_ctrlc().await;
+
+    let _ = notification::Notification::new(
+        &config,
+        &vec!["default".to_string()],
         "Process Started".to_string(),
         "Will let you know when this process completes".to_string(),
     )
-    .unwrap();
+    .send()
+    .await;
 
     let program = args.run.get(0).cloned().unwrap();
     let program_args = args.run.split_off(1);
@@ -50,38 +86,26 @@ async fn main() -> anyhow::Result<()> {
         .expect("failed to execute child");
 
     let status = child.wait().expect("failed to wait on child");
-
-    match status.code() {
+    let (title, msg) = match status.code() {
         Some(code) => {
             // should hand the exit code type, for now consider only is 0
             println!("Exited with status code: {code}");
 
             match code {
-                0 => {
-                    notification::send_notification(
-                        "Process completed".to_string(),
-                        "Success".to_string(),
-                    )
-                    .unwrap();
-                }
-                1 => {
-                    notification::send_notification(
-                        "Process errored".to_string(),
-                        "Error".to_string(),
-                    )
-                    .unwrap();
-                }
-                _ => {
-                    notification::send_notification(
-                        "Something went wrong".to_string(),
-                        "Panic".to_string(),
-                    )
-                    .unwrap();
-                }
+                0 => ("Process completed".to_string(), "Success".to_string()),
+                1 => ("Process errored".to_string(), "Error".to_string()),
+                _ => ("Something went wrong".to_string(), "Unknown".to_string()),
             }
         }
-        None => println!("Process terminated by signal"),
-    }
+        None => (
+            "Process terminated by signal".to_string(),
+            "Cancelled".to_string(),
+        ),
+    };
+
+    let _ = notification::Notification::new(&config, &args.profiles.unwrap(), title, msg)
+        .send()
+        .await;
 
     Ok(())
 }
