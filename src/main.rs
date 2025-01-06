@@ -51,7 +51,7 @@ struct GChatConfig {
     webhook: String,
     api_key: String,
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct EmailConfig {
     from: String,
     to: String,
