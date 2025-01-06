@@ -1,19 +1,31 @@
 use tokio::fs::File;
-use tokio::io::{self, AsyncReadExt};
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 
-//pub async fn handle_ctrlc() {
-//    let _ = ctrlc::set_handler(move || {
-//        println!("received Ctrl+C!");
-//        println!("sending cancelled notification");
-//    });
-//}
 use super::Config;
 
 pub async fn app_state() -> anyhow::Result<Config> {
-    //let path = dirs::config_dir().unwrap();
+    let config_path = dirs::config_dir()
+        .unwrap()
+        .join(std::env::var("CARGO_PKG_NAME").unwrap());
+    let filename = "config.toml";
+
+    let path = config_path.join(filename);
+
+    println!("{:?}", path);
+    if !path.exists() {
+        // Ensure the parent directory exists
+        tokio::fs::create_dir_all(&config_path).await?;
+
+        // Create the file and write some initial content
+        let mut file = File::create(&path).await?;
+        file.write_all(super::constants::CONFIG_FILE_CONTENT)
+            .await?;
+
+        println!("File created: {:?}", path);
+    }
 
     // Asynchronously open the TOML file
-    let mut file = File::open("config.toml").await?;
+    let mut file = File::open(path.join(filename)).await?;
 
     // Read the file content into a string
     let mut contents = String::new();

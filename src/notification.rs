@@ -8,15 +8,6 @@ pub struct Notification<'b> {
     msg: String,
 }
 
-pub struct EmailClient<'a> {
-    from: &'a String,
-    to: &'a String,
-    host: &'a String,
-    api_key: &'a Option<String>,
-    msg: &'a String,
-    title: &'a String,
-}
-
 impl<'b> Notification<'b> {
     pub fn new(
         config: &'b super::Config,
@@ -51,18 +42,21 @@ impl<'b> Notification<'b> {
             .body(self.msg.to_string())
             .unwrap();
 
-        let creds: Credentials =
-            Credentials::new("apikey".to_string(), email_config.api_key.clone().unwrap());
+        let creds: Credentials = Credentials::new(
+            email_config.username.to_string(),
+            email_config.password.to_string(),
+        );
 
         // Open a remote connection to gmail
         let mailer: SmtpTransport = SmtpTransport::relay(&email_config.host.to_string())
             .unwrap()
+            .port(email_config.port)
             .credentials(creds)
             .build();
 
         // Send the email
         match mailer.send(&email) {
-            Ok(_) => println!("Email sent successfully!"),
+            Ok(_) => {}
             Err(e) => panic!("Could not send email: {:?}", e),
         }
 
@@ -77,25 +71,5 @@ impl<'b> Notification<'b> {
         self.send_desktop().await.unwrap();
 
         Ok(())
-    }
-}
-
-impl<'a> EmailClient<'a> {
-    pub fn new(
-        from: &'a String,
-        to: &'a String,
-        host: &'a String,
-        api_key: &'a Option<String>,
-        msg: &'a String,
-        title: &'a String,
-    ) -> EmailClient<'a> {
-        EmailClient {
-            from,
-            to,
-            host,
-            api_key,
-            title,
-            msg,
-        }
     }
 }

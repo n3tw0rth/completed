@@ -25,3 +25,5 @@ Cargo.lock
 /target
 
 test*.sh
+
+config.toml

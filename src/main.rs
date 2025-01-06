@@ -55,27 +55,20 @@ struct GChatConfig {
 struct EmailConfig {
     from: String,
     to: String,
-    api_key: Option<String>,
+    username: String,
+    password: String,
     port: u16,
     host: String,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    println!("{}", std::env::var("CARGO_PKG_NAME").unwrap());
     let mut args = Args::parse();
 
     let config = helpers::app_state().await?;
 
     // helpers::handle_ctrlc().await;
-
-    let _ = notification::Notification::new(
-        &config,
-        &vec!["default".to_string()],
-        "Process Started".to_string(),
-        "Will let you know when this process completes".to_string(),
-    )
-    .send()
-    .await;
 
     let program = args.run.get(0).cloned().unwrap();
     let program_args = args.run.split_off(1);
