@@ -47,14 +47,12 @@ impl<'b> Notification<'b> {
             email_config.password.to_string(),
         );
 
-        // Open a remote connection to gmail
         let mailer: SmtpTransport = SmtpTransport::relay(&email_config.host.to_string())
             .unwrap()
             .port(email_config.port)
             .credentials(creds)
             .build();
 
-        // Send the email
         match mailer.send(&email) {
             Ok(_) => {}
             Err(e) => panic!("Could not send email: {:?}", e),
