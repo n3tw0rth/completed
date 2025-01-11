@@ -1,11 +1,9 @@
 use std::collections::HashMap;
-use std::{env, process::Command};
 
 use clap::Parser;
 use serde::Deserialize;
-use tokio::fs::File;
-use tokio::io::{self, AsyncReadExt};
-use toml::de::from_str;
+use tokio::io::{self, AsyncBufReadExt, BufReader};
+use tokio::process::Command;
 
 mod constants;
 mod enums;
@@ -30,9 +28,9 @@ struct Args {
     name: Option<String>,
 
     #[arg(short, long)]
-    triggers: Option<Vec<String>>,
+    triggers: Option<String>,
 
-    #[arg(long, short, action)]
+    #[arg(long, action)]
     verbose: bool,
 }
 
@@ -66,6 +64,8 @@ struct EmailConfig {
 async fn main() -> anyhow::Result<()> {
     let mut args = Args::parse();
 
+    println!("{:?}", args.triggers);
+
     let config = helpers::app_state().await?;
 
     // helpers::handle_ctrlc().await;
@@ -73,12 +73,45 @@ async fn main() -> anyhow::Result<()> {
     let program = args.run.get(0).cloned().unwrap();
     let program_args = args.run.split_off(1);
 
+    // Spawn the subprocess and pipe its stdout
     let mut child = Command::new(program)
         .args(program_args)
-        .spawn()
-        .expect("failed to execute child");
+        .stdout(std::process::Stdio::piped())
+        .spawn()?;
 
-    let status = child.wait().expect("failed to wait on child");
+    // Take the stdout
+    let stdout = child.stdout.take().expect("Failed to capture stdout");
+
+    // Wrap stdout in a BufReader and read it line by line
+    let mut reader = BufReader::new(stdout).lines();
+
+    while let Some(line) = reader.next_line().await? {
+        // Stdio::piped() does not write to parent stdout
+        // following line will handle it
+        println!("{}", line);
+
+        // Check if the line contains a trigger string
+        let contains_a_trigger = args
+            .triggers
+            .as_ref()
+            .unwrap()
+            .split(",")
+            .collect::<Vec<_>>()
+            .iter()
+            .any(|t| line.contains(t));
+        if contains_a_trigger {
+            let _ = notification::Notification::new(
+                &config,
+                &args.profiles.as_ref().unwrap(),
+                "Trigger Detected".to_string(),
+                "".to_string(),
+            )
+            .send()
+            .await;
+        }
+    }
+
+    let status = child.wait().await.expect("failed to wait on child");
     let (title, msg) = match status.code() {
         Some(code) => {
             // should hand the exit code type, for now consider only is 0
