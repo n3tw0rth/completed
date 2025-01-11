@@ -18,14 +18,14 @@ pub async fn app_state() -> anyhow::Result<Config> {
 
         // Create the file and write some initial content
         let mut file = File::create(&path).await?;
-        file.write_all(super::constants::CONFIG_FILE_CONTENT)
+        file.write_all(super::constants::CONFIG_FILE_CONTENT.as_bytes())
             .await?;
 
         println!("File created: {:?}", path);
     }
 
     // Asynchronously open the TOML file
-    let mut file = File::open(path.join(filename)).await?;
+    let mut file = File::open(path).await?;
 
     // Read the file content into a string
     let mut contents = String::new();

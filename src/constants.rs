@@ -16,7 +16,7 @@ pub const ABOUT_TEXT: &str = r#"
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 "#;
 
-pub const CONFIG_FILE_CONTENT: &str = r#"
+pub const CONFIG_FILE_CONTENT: &str = r#"# config for completion notifier
 [email.default]
 from = ""
 to = ""
