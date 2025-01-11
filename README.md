@@ -60,11 +60,9 @@ port = 465
 host = ""
 
 [profiles.default]
-print_output = true
 sendto = ["desktop","email.default"]
 
 [profiles.work]
-print_output = true
 sendto = ["desktop","gchat.work","email.work"]
 
 [gchat.work]
