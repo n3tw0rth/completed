@@ -8,6 +8,7 @@ use tokio::io::{self, AsyncReadExt};
 use toml::de::from_str;
 
 mod constants;
+mod enums;
 mod helpers;
 mod notification;
 mod send_emails;
@@ -37,7 +38,7 @@ struct Args {
 
 #[derive(Deserialize, Debug)]
 struct Config {
-    email: HashMap<String, EmailConfig>,
+    email: Option<HashMap<String, EmailConfig>>,
     gchat: Option<HashMap<String, GChatConfig>>,
     profiles: HashMap<String, ProfileConfig>,
 }
@@ -63,7 +64,6 @@ struct EmailConfig {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("{}", std::env::var("CARGO_PKG_NAME").unwrap());
     let mut args = Args::parse();
 
     let config = helpers::app_state().await?;
