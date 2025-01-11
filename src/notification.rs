@@ -1,3 +1,5 @@
+use super::enums::ConfigType;
+use futures::stream::{self, StreamExt};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 
@@ -34,6 +36,19 @@ impl<'b> Notification<'b> {
         Ok(())
     }
 
+    pub async fn send_gchat(&self, gchat_config: &super::GChatConfig) -> anyhow::Result<()> {
+        let result = reqwest::Client::new()
+            .post(gchat_config.webhook.to_string())
+            .header("Content-Type", "application/json; charset=UTF-8")
+            .json(&serde_json::json!({
+                "text": format!("{}\n*{}*",self.title,self.msg),
+            }))
+            .send()
+            .await?;
+
+        Ok(())
+    }
+
     pub async fn send_mail(&self, email_config: &super::EmailConfig) -> anyhow::Result<()> {
         let email: Message = Message::builder()
             .from(email_config.from.parse().unwrap())
@@ -62,11 +77,44 @@ impl<'b> Notification<'b> {
     }
 
     pub async fn send(&self) -> anyhow::Result<()> {
-        self.send_mail(self.config.email.get("default").unwrap())
-            .await
-            .unwrap();
+        stream::iter(self.profiles)
+            .for_each(|item| async move {
+                let send_to = &self.config.profiles.get(item).unwrap().sendto;
 
-        self.send_desktop().await.unwrap();
+                let _ = stream::iter(send_to)
+                    .for_each(|cfg| async move {
+                        if let [mode, name] = cfg.split(".").collect::<Vec<_>>()[0..] {
+                            match mode {
+                                "email" => {
+                                    let _ = self
+                                        .send_mail(
+                                            self.config.email.as_ref().unwrap().get(name).unwrap(),
+                                        )
+                                        .await;
+                                }
+                                "gchat" => {
+                                    let _ = self
+                                        .send_gchat(
+                                            self.config.gchat.as_ref().unwrap().get(name).unwrap(),
+                                        )
+                                        .await;
+                                }
+                                _ => {}
+                            }
+                        } else {
+                            match cfg.as_str() {
+                                "desktop" => {
+                                    self.send_desktop().await.unwrap();
+                                }
+                                _ => {
+                                    println!("Please update the profile configuration for {}", cfg)
+                                }
+                            };
+                        }
+                    })
+                    .await;
+            })
+            .await;
 
         Ok(())
     }
