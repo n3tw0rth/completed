@@ -42,13 +42,11 @@ struct Config {
 }
 #[derive(Deserialize, Debug)]
 struct ProfileConfig {
-    print_output: Option<bool>,
     sendto: Vec<String>,
 }
 #[derive(Deserialize, Debug)]
 struct GChatConfig {
     webhook: String,
-    api_key: String,
 }
 #[derive(Deserialize, Debug, Clone)]
 struct EmailConfig {
