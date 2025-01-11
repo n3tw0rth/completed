@@ -1,52 +1,74 @@
+# Completion Notifier
 
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣿⣿⠆⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⣿⡿⠁⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⣿⣿⠟⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣴⣿⣿⡿⠃⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣾⣿⣿⠟⠁⠀⠀⠀⠀⠀⠀
-⠀⢀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⣿⣿⣿⠏⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠺⣿⣷⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⣿⣿⣿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠈⠻⣿⣿⣦⣄⠀⠀⠀⠀⠀⠀⣠⣿⣿⣿⡿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠈⠻⣿⣿⣷⣤⡀⠀⠀⣰⣿⣿⣿⡿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣿⣦⣼⣿⣿⣿⡿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣿⣿⣿⡿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠻⣿⣿⣿⡿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⡟⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+A simple notifier to send notifications on terminal process events.
 
 
-Usage: completion-notifier [OPTIONS] <RUN>...
+## Installation
 
-Arguments:
-  <RUN>...  
+Install directly from source
 
-Options:
-  -p, --profiles <PROFILES>  [default: default]
-  -n, --name <NAME>          
-  -t, --triggers <TRIGGERS>  
-  -v, --verbose              
-  -h, --help                 Print help
-  -V, --version              Print version
+```bash
+  $ git clone https://github.com/n3tw0rth/completion-notifier.git
+  $ cd completion-notifier
+  $ ./install.sh
+  
+  $ completion-notifier -v
+  $ completion-notifier -h
+```
 
+it is better to use a alias for the binary,
+```bash
+#.bashrc
+alias notif='completion-notifier'
+```
+## Usage
 
+It is easy as passing the command directly, by default a notification will be send once the program completes execution success or failed.
 
+```shell
+$ completion-notifier ping google.com 
+```
+### Triggers
+Triggers can be added to send custom notifications based on the requirement. for example,
 
-## config
+```shell
+$ completion-notifier -t PING ping google.com 
+```
+program will start running as usual, and will send additionals notifications before process exit. Based on the string values passed into the `-t` flag. According to this example a notification will be send when program find a specific line contain the word `PING`.
 
-```markdown
+```shell
+$ completion-notifier -t approve,'Enter a value' terraform apply
+```
+flag `-t` will accept comma seperated values, and trigger values containing more words seperated by spaces they can be passed in as shown. In this example user will be notified when there undefined variables and when terraform ask for user confirmation to apply the change.
+## Configuration
+
+```toml
 [email.default]
-from = ""
-to = ""
-api_key = ""
-port = 587
+from = "acme@dev.com"
+to = "me@dev.com"
+username = ""
+password = ""
+port = 465
+host = ""
+
+[email.work]
+from = "acme@dev.com"
+to = "pm@dev.com"
+username = ""
+password = ""
+port = 465
 host = ""
 
 [profiles.default]
 print_output = true
-sendto = ["email.default"]
+sendto = ["desktop","email.default"]
 
-[gchat.default]
+[profiles.work]
+print_output = true
+sendto = ["desktop","gchat.work","email.work"]
+
+[gchat.work]
 api_key = ""
 webhook = ""
+
 ```
