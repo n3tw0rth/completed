@@ -1,4 +1,3 @@
-use super::enums::ConfigType;
 use futures::stream::{self, StreamExt};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
@@ -25,8 +24,6 @@ impl<'b> Notification<'b> {
         }
     }
 
-    pub async fn read_local_config() {}
-
     pub async fn send_desktop(&self) -> anyhow::Result<()> {
         let _ = notify_rust::Notification::new()
             .summary(&self.title)
@@ -37,7 +34,7 @@ impl<'b> Notification<'b> {
     }
 
     pub async fn send_gchat(&self, gchat_config: &super::GChatConfig) -> anyhow::Result<()> {
-        let result = reqwest::Client::new()
+        let _ = reqwest::Client::new()
             .post(gchat_config.webhook.to_string())
             .header("Content-Type", "application/json; charset=UTF-8")
             .json(&serde_json::json!({

@@ -2,14 +2,13 @@ use std::collections::HashMap;
 
 use clap::Parser;
 use serde::Deserialize;
-use tokio::io::{self, AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
 mod constants;
 mod enums;
 mod helpers;
 mod notification;
-mod send_emails;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None,arg_required_else_help = true,trailing_var_arg=true)]
@@ -62,8 +61,6 @@ struct EmailConfig {
 async fn main() -> anyhow::Result<()> {
     let mut args = Args::parse();
 
-    println!("{:?}", args.triggers);
-
     let config = helpers::app_state().await?;
 
     // helpers::handle_ctrlc().await;
@@ -88,24 +85,26 @@ async fn main() -> anyhow::Result<()> {
         // following line will handle it
         println!("{}", line);
 
-        // Check if the line contains a trigger string
-        let contains_a_trigger = args
-            .triggers
-            .as_ref()
-            .unwrap()
-            .split(",")
-            .collect::<Vec<_>>()
-            .iter()
-            .any(|t| line.contains(t));
-        if contains_a_trigger {
-            let _ = notification::Notification::new(
-                &config,
-                &args.profiles.as_ref().unwrap(),
-                "Trigger Detected".to_string(),
-                "".to_string(),
-            )
-            .send()
-            .await;
+        if args.triggers.is_some() {
+            // Check if the line contains a trigger string
+            let contains_a_trigger = args
+                .triggers
+                .as_ref()
+                .unwrap()
+                .split(",")
+                .collect::<Vec<_>>()
+                .iter()
+                .any(|t| line.contains(t));
+            if contains_a_trigger {
+                let _ = notification::Notification::new(
+                    &config,
+                    &args.profiles.as_ref().unwrap(),
+                    "Trigger Detected".to_string(),
+                    "".to_string(),
+                )
+                .send()
+                .await;
+            }
         }
     }
 

@@ -12,7 +12,6 @@ Install directly from source
   $ cd completion-notifier
   $ ./install.sh
   
-  $ completion-notifier -v
   $ completion-notifier -h
 ```
 
@@ -28,6 +27,18 @@ It is easy as passing the command directly, by default a notification will be se
 ```shell
 $ completion-notifier ping google.com 
 ```
+### Profiles
+Profiles can used to group notification clients by a specific name.
+
+```toml
+[profiles.default]
+sendto = ["desktop","email.default"]
+
+[profiles.work]
+sendto = ["desktop","gchat.work","email.work"]
+
+```
+
 ### Triggers
 Triggers can be added to send custom notifications based on the requirement. for example,
 

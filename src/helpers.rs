@@ -1,5 +1,5 @@
 use tokio::fs::File;
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::Config;
 
