@@ -4,9 +4,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use super::Config;
 
 pub async fn app_state() -> anyhow::Result<Config> {
-    let config_path = dirs::config_dir()
-        .unwrap()
-        .join(std::env::var("CARGO_PKG_NAME").unwrap());
+    let config_path = dirs::config_dir().unwrap().join("fetched");
     let filename = "config.toml";
 
     let path = config_path.join(filename);
