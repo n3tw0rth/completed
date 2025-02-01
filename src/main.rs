@@ -28,9 +28,6 @@ struct Args {
 
     #[arg(short, long)]
     triggers: Option<String>,
-
-    #[arg(long, action)]
-    verbose: bool,
 }
 
 #[derive(Deserialize, Debug)]
