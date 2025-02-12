@@ -28,9 +28,6 @@ struct Args {
 
     #[arg(short, long)]
     triggers: Option<String>,
-
-    #[arg(long, action)]
-    verbose: bool,
 }
 
 #[derive(Deserialize, Debug)]
@@ -59,11 +56,10 @@ struct EmailConfig {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Parse the command line arguments
     let mut args = Args::parse();
 
     let config = helpers::app_state().await?;
-
-    // helpers::handle_ctrlc().await;
 
     let program = args.run.get(0).cloned().unwrap();
     let program_args = args.run.split_off(1);
@@ -87,23 +83,24 @@ async fn main() -> anyhow::Result<()> {
 
         if args.triggers.is_some() {
             // Check if the line contains a trigger string
-            let contains_a_trigger = args
+            let contained_triggers: Vec<_> = args
                 .triggers
                 .as_ref()
                 .unwrap()
                 .split(",")
-                .collect::<Vec<_>>()
-                .iter()
-                .any(|t| line.contains(t));
-            if contains_a_trigger {
-                let _ = notification::Notification::new(
+                .filter(|trigger| line.contains(trigger))
+                .collect();
+
+            if contained_triggers.len() > 0 {
+                notification::Notification::new(
                     &config,
                     &args.profiles.as_ref().unwrap(),
                     "Trigger Detected".to_string(),
-                    "".to_string(),
+                    contained_triggers.join(","),
                 )
-                .send()
-                .await;
+                .send_trigger()
+                .await
+                .unwrap();
             }
         }
     }

@@ -115,4 +115,11 @@ impl<'b> Notification<'b> {
 
         Ok(())
     }
+
+    pub async fn send_trigger(&mut self) -> anyhow::Result<()> {
+        // expect a list of triggers found and will update the notification massage based on that
+        self.msg = format!("Triggers invoked {}", self.msg);
+        self.send().await?;
+        Ok(())
+    }
 }

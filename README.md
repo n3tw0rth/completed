@@ -18,7 +18,7 @@ Install directly from source
 it is better to use a alias for the binary,
 ```bash
 #.bashrc
-alias notif='completion-notifier'
+alias notify='completion-notifier'
 ```
 ## Usage
 
