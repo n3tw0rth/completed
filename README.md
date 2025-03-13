@@ -1,4 +1,4 @@
-# Completion Notifier
+# Completed
 
 A simple notifier to send notifications on terminal process events.
 
@@ -8,24 +8,24 @@ A simple notifier to send notifications on terminal process events.
 Install directly from source
 
 ```bash
-  $ git clone https://github.com/n3tw0rth/completion-notifier.git
-  $ cd completion-notifier
+  $ git clone https://github.com/n3tw0rth/completed.git
+  $ cd completed
   $ ./install.sh
   
-  $ completion-notifier -h
+  $ completed -h
 ```
 
 it is better to use a alias for the binary,
 ```bash
 #.bashrc
-alias notify='completion-notifier'
+alias notify='completed'
 ```
 ## Usage
 
 It is easy as passing the command directly, by default a notification will be send once the program completes execution success or failed.
 
 ```shell
-$ completion-notifier ping google.com 
+$ completed ping google.com 
 ```
 ### Profiles
 Profiles can used to group notification clients by a specific name.
@@ -43,12 +43,12 @@ sendto = ["desktop","gchat.work","email.work"]
 Triggers can be added to send custom notifications based on the requirement. for example,
 
 ```shell
-$ completion-notifier -t PING ping google.com 
+$ completed -t PING ping google.com 
 ```
 program will start running as usual, and will send additionals notifications before process exit. Based on the string values passed into the `-t` flag. According to this example a notification will be send when program find a specific line contain the word `PING`.
 
 ```shell
-$ completion-notifier -t approve,'Enter a value' terraform apply
+$ completed -t approve,'Enter a value' terraform apply
 ```
 flag `-t` will accept comma seperated values, and trigger values containing more words seperated by spaces they can be passed in as shown. In this example user will be notified when there undefined variables and when terraform ask for user confirmation to apply the change.
 ## Configuration
