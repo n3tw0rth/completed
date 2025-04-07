@@ -1,15 +1,25 @@
+use std::env;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::Config;
 
-pub async fn app_state() -> anyhow::Result<Config> {
-    let config_path = dirs::config_dir().unwrap().join("completion-notifier");
+/// Get the app configuration on runtime
+/// if the configuration file is missing a new file will be created
+///
+/// |Platform | Configuration file                                               |
+/// | ------- | ---------------------------------------------------- |
+/// | Linux   | /home/alice/.config/completed/config.toml            |
+/// | Windows | C:\Users\Alice\AppData\Roaming\completed\config.toml |
+///
+pub async fn get_app_config() -> anyhow::Result<Config> {
     let filename = "config.toml";
+    let pkg_name = env::var("CARGO_PKG_NAME")
+        .expect("Package name is missing, there is nothing you can do about it :) ");
 
+    let config_path = dirs::config_dir().unwrap().join(&pkg_name);
     let path = config_path.join(filename);
 
-    println!("{:?}", path);
     if !path.exists() {
         // Ensure the parent directory exists
         tokio::fs::create_dir_all(&config_path).await?;
@@ -22,10 +32,7 @@ pub async fn app_state() -> anyhow::Result<Config> {
         println!("File created: {:?}", path);
     }
 
-    // Asynchronously open the TOML file
     let mut file = File::open(path).await?;
-
-    // Read the file content into a string
     let mut contents = String::new();
     file.read_to_string(&mut contents).await?;
 
