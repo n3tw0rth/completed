@@ -6,7 +6,6 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
 mod constants;
-mod enums;
 mod helpers;
 mod notification;
 
@@ -59,7 +58,7 @@ async fn main() -> anyhow::Result<()> {
     // Parse the command line arguments
     let mut args = Args::parse();
 
-    let config = helpers::app_state().await?;
+    let config = helpers::get_app_config().await?;
 
     let program = args.run.get(0).cloned().unwrap();
     let program_args = args.run.split_off(1);
@@ -91,6 +90,7 @@ async fn main() -> anyhow::Result<()> {
                 .filter(|trigger| line.contains(trigger))
                 .collect();
 
+            // send notification on each trigger
             if contained_triggers.len() > 0 {
                 notification::Notification::new(
                     &config,
@@ -108,9 +108,7 @@ async fn main() -> anyhow::Result<()> {
     let status = child.wait().await.expect("failed to wait on child");
     let (title, msg) = match status.code() {
         Some(code) => {
-            // should hand the exit code type, for now consider only is 0
-            println!("Exited with status code: {code}");
-
+            // Handle exit codes
             match code {
                 0 => ("Process completed".to_string(), "Success".to_string()),
                 1 => ("Process errored".to_string(), "Error".to_string()),
@@ -118,14 +116,15 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         None => (
-            "Process terminated by signal".to_string(),
-            "Cancelled".to_string(),
+            "Process terminated with unknown reason".to_string(),
+            "Unknown".to_string(),
         ),
     };
 
-    let _ = notification::Notification::new(&config, &args.profiles.unwrap(), title, msg)
+    // Send the notication for status code
+    notification::Notification::new(&config, &args.profiles.unwrap(), title, msg)
         .send()
-        .await;
+        .await?;
 
     Ok(())
 }
