@@ -2,8 +2,13 @@
 
 A simple notifier to send notifications on terminal process events.
 
+### Why
 
-## Installation
+When working on multiple in parallel developers get distract a lot. It is really annoying when you forget attention seeking processes and that waste a lot of time. But what if we there is a tool for this exact purpose. This project started to show desktop notifications but soon realize that we can use the same tool in environment where there is no desktop environment (eg: pipelines, VMs etc). 
+
+This is easy to use just add it in your scripts or wherever you want
+
+### Installation
 
 Install directly from source
 
@@ -20,7 +25,7 @@ it is better to use a alias for the binary,
 #.bashrc
 alias notify='completed'
 ```
-## Usage
+### Usage
 
 It is easy as passing the command directly, by default a notification will be send once the program completes execution success or failed.
 
@@ -39,13 +44,19 @@ sendto = ["desktop","gchat.work","email.work"]
 
 ```
 
+Profiles can be passed using the flags `-p` or `--profile`. Similar to triggers you can pass multiple profiles by passing comma seperated profile names. All the destinations defined in the profiles will recieve notifications.
+
+```shell
+$ completed -p default,work ping google.com 
+```
+
 ### Triggers
 Triggers can be added to send custom notifications based on the requirement. for example,
 
 ```shell
 $ completed -t PING ping google.com 
 ```
-program will start running as usual, and will send additionals notifications before process exit. Based on the string values passed into the `-t` flag. According to this example a notification will be send when program find a specific line contain the word `PING`.
+Program will start running as usual, and will send additionals notifications before process exit. But based on the string values passed into the `-t` flag `completed` will send additional notifications with the message `Trigger invoked <trigger>`. According to this example a notifications will be send when program find a specific line in stdout contain the word `PING`.
 
 ```shell
 $ completed -t approve,'Enter a value' terraform apply
