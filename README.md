@@ -33,7 +33,7 @@ It is easy as passing the command directly, by default a notification will be se
 $ completed ping google.com 
 ```
 
-how i use it :)
+how i use it 🫢
 
 ```shell
 alias notify='completion-notifier'
