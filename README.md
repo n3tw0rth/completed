@@ -32,6 +32,14 @@ It is easy as passing the command directly, by default a notification will be se
 ```shell
 $ completed ping google.com 
 ```
+
+how i use it :)
+
+```shell
+alias notify='completion-notifier'
+alias terraform='notify -t approve,Enter terraform'
+```
+
 ### Profiles
 Profiles can used to group notification clients by a specific name.
 
