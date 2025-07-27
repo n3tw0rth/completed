@@ -27,7 +27,7 @@ host = ""
 
 [profiles.default]
 print_output = true
-sendto = ["email.default"]
+sendto = ["desktop"]
 
 [gchat.default]
 api_key = ""

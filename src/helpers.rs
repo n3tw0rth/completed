@@ -4,12 +4,11 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use super::Config;
 
 pub async fn app_state() -> anyhow::Result<Config> {
-    let config_path = dirs::config_dir().unwrap().join("completion-notifier");
+    let config_path = dirs::config_dir().unwrap().join(env!("CARGO_PKG_NAME"));
     let filename = "config.toml";
 
     let path = config_path.join(filename);
 
-    println!("{:?}", path);
     if !path.exists() {
         // Ensure the parent directory exists
         tokio::fs::create_dir_all(&config_path).await?;

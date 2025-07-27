@@ -1,58 +1,8 @@
-use std::collections::HashMap;
-
 use clap::Parser;
-use serde::Deserialize;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-mod constants;
-mod enums;
-mod helpers;
-mod notification;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None,arg_required_else_help = true,trailing_var_arg=true)]
-#[clap(
-    about = constants::ABOUT_TEXT,
-)]
-struct Args {
-    #[clap(required = true)]
-    pub run: Vec<String>,
-
-    #[arg(short, long)]
-    #[clap(default_value = "default")]
-    profiles: Option<Vec<String>>,
-
-    #[arg(short, long)]
-    name: Option<String>,
-
-    #[arg(short, long)]
-    triggers: Option<String>,
-}
-
-#[derive(Deserialize, Debug)]
-struct Config {
-    email: Option<HashMap<String, EmailConfig>>,
-    gchat: Option<HashMap<String, GChatConfig>>,
-    profiles: HashMap<String, ProfileConfig>,
-}
-#[derive(Deserialize, Debug)]
-struct ProfileConfig {
-    sendto: Vec<String>,
-}
-#[derive(Deserialize, Debug)]
-struct GChatConfig {
-    webhook: String,
-}
-#[derive(Deserialize, Debug, Clone)]
-struct EmailConfig {
-    from: String,
-    to: String,
-    username: String,
-    password: String,
-    port: u16,
-    host: String,
-}
+use completed::{helpers, notification, Args};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -95,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
                 notification::Notification::new(
                     &config,
                     &args.profiles.as_ref().unwrap(),
-                    "Trigger Detected".to_string(),
+                    "Trigger Detected: ".to_string(),
                     contained_triggers.join(","),
                 )
                 .send_trigger()
