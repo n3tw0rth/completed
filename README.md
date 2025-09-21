@@ -1,4 +1,4 @@
-# Completed
+<img width="1000" height="400" alt="Completed" src="https://github.com/user-attachments/assets/3bcb44c1-abd8-4786-a883-51c27ca44cee" />
 
 A simple notifier to send notifications on terminal process events.
 
