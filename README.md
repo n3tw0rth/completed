@@ -1,104 +1,105 @@
-<img width="1000" height="400" alt="Completed" src="https://github.com/user-attachments/assets/a26aca33-fa23-47e9-8c2a-a4cb1242995a" />
+# Completed
 
+A terminal process notification tool that alerts you when long-running commands finish — via desktop notifications, email, or Google Chat.
 
+## Overview
 
-A simple notifier to send notifications on terminal process events.
+Developers working on multiple tasks in parallel often lose track of long-running processes. `completed` wraps any command and sends a notification when it finishes, regardless of whether it succeeded or failed. It works in both desktop environments and headless environments like CI pipelines and VMs.
 
-### Why
+## Installation
 
-When working on multiple in parallel developers get distract a lot. It is really annoying when you forget attention seeking processes and that waste a lot of time. But what if we there is a tool for this exact purpose. This project started to show desktop notifications but soon realize that we can use the same tool in environment where there is no desktop environment (eg: pipelines, VMs etc). 
-
-This is easy to use just add it in your scripts or wherever you want
-
-### Installation
-
-Install directly from source
+Clone and install from source:
 
 ```bash
-  $ git clone https://github.com/n3tw0rth/completed.git
-  $ cd completed
-  $ ./install.sh
-  
-  $ completed -h
+git clone https://github.com/n3tw0rth/completed.git
+cd completed
+./install.sh
+
+completed -h
 ```
 
-it is better to use a alias for the binary,
+For convenience, add an alias to your shell config:
+
 ```bash
-#.bashrc
+# ~/.bashrc or ~/.zshrc
 alias notify='completed'
 ```
-### Usage
 
-It is easy as passing the command directly, by default a notification will be send once the program completes execution success or failed.
+## Usage
 
-```shell
-$ completed ping google.com 
+Wrap any command by passing it directly to `completed`:
+
+```bash
+completed ping google.com
 ```
 
-how i use it 🫢
+A notification is sent once the process exits, indicating success or failure.
 
-```shell
-alias notify='completion-notifier'
-alias terraform='notify -t approve,Enter terraform'
+### Triggers
+
+Use `-t` / `--triggers` to send additional notifications when specific strings appear in stdout:
+
+```bash
+completed -t PING ping google.com
+```
+
+Multiple trigger strings can be passed as comma-separated values. Phrases with spaces should be quoted:
+
+```bash
+completed -t approve,'Enter a value' terraform apply
 ```
 
 ### Profiles
-Profiles can used to group notification clients by a specific name.
 
-```toml
-[profiles.default]
-sendto = ["desktop","email.default"]
+Profiles group notification destinations under a named label. Use `-p` / `--profile` to select one or more profiles:
 
-[profiles.work]
-sendto = ["desktop","gchat.work","email.work"]
-
+```bash
+completed -p default,work ping google.com
 ```
 
-Profiles can be passed using the flags `-p` or `--profile`. Similar to triggers you can pass multiple profiles by passing comma seperated profile names. All the destinations defined in the profiles will recieve notifications.
+Multiple profiles can be specified as comma-separated values. All destinations defined across the selected profiles will receive notifications.
 
-```shell
-$ completed -p default,work ping google.com 
-```
-
-### Triggers
-Triggers can be added to send custom notifications based on the requirement. for example,
-
-```shell
-$ completed -t PING ping google.com 
-```
-Program will start running as usual, and will send additionals notifications before process exit. But based on the string values passed into the `-t` flag `completed` will send additional notifications with the message `Trigger invoked <trigger>`. According to this example a notifications will be send when program find a specific line in stdout contain the word `PING`.
-
-```shell
-$ completed -t approve,'Enter a value' terraform apply
-```
-flag `-t` will accept comma seperated values, and trigger values containing more words seperated by spaces they can be passed in as shown. In this example user will be notified when there undefined variables and when terraform ask for user confirmation to apply the change.
 ## Configuration
+
+Place your configuration in the appropriate config file. Below is a full example:
 
 ```toml
 [email.default]
-from = "acme@dev.com"
-to = "me@dev.com"
+from     = "acme@dev.com"
+to       = "me@dev.com"
 username = ""
 password = ""
-port = 465
-host = ""
+port     = 465
+host     = ""
 
 [email.work]
-from = "acme@dev.com"
-to = "pm@dev.com"
+from     = "acme@dev.com"
+to       = "pm@dev.com"
 username = ""
 password = ""
-port = 465
-host = ""
-
-[profiles.default]
-sendto = ["desktop","email.default"]
-
-[profiles.work]
-sendto = ["desktop","gchat.work","email.work"]
+port     = 465
+host     = ""
 
 [gchat.work]
 api_key = ""
 webhook = ""
 
+[profiles.default]
+sendto = ["desktop", "email.default"]
+
+[profiles.work]
+sendto = ["desktop", "gchat.work", "email.work"]
 ```
+
+## Example Workflow
+
+```bash
+alias notify='completed'
+alias terraform='notify -t approve,"Enter a value" terraform'
+```
+
+With this setup, running `terraform apply` will notify you when Terraform requests input or when the apply completes.
+
+## License
+
+See [LICENSE](LICENSE) for details.
