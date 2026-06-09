@@ -17,5 +17,6 @@ serde = "1.0.217"
 serde_json = "1.0.134"
 strum = "0.26.3"
 strum_macros = "0.26.4"
+thiserror = "2.0.18"
 tokio = { version = "1.42.0", features = ["full"] }
 toml = "0.8.19"

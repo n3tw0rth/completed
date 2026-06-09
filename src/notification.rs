@@ -2,6 +2,9 @@ use futures::stream::{self, StreamExt};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 
+use crate::error::CompletedError;
+use crate::CompletedResult;
+
 pub struct Notification<'b> {
     config: &'b super::Config,
     profiles: &'b Vec<String>,
@@ -24,9 +27,9 @@ impl<'b> Notification<'b> {
         }
     }
 
-    /// send desktop notifications using the crate `notify_rust`
+    /// Send desktop notifications using the crate `notify_rust`
     /// desktop notification is the default preference
-    pub async fn send_desktop(&self) -> anyhow::Result<()> {
+    pub async fn send_desktop(&self) -> CompletedResult<()> {
         let _ = notify_rust::Notification::new()
             .summary(&self.title)
             .body(&self.msg)
@@ -35,8 +38,8 @@ impl<'b> Notification<'b> {
         Ok(())
     }
 
-    /// Send notification to gcaht using the webhooks
-    pub async fn send_gchat(&self, gchat_config: &super::GChatConfig) -> anyhow::Result<()> {
+    /// Send notification to g chat using the webhooks
+    pub async fn send_gchat(&self, gchat_config: &super::GChatConfig) -> CompletedResult<()> {
         let _ = reqwest::Client::new()
             .post(gchat_config.webhook.to_string())
             .header("Content-Type", "application/json; charset=UTF-8")
@@ -44,13 +47,13 @@ impl<'b> Notification<'b> {
                 "text": format!("{}\n*{}*",self.title,self.msg),
             }))
             .send()
-            .await?;
+            .await;
 
         Ok(())
     }
 
     /// Send emails using the smtp
-    pub async fn send_mail(&self, email_config: &super::EmailConfig) -> anyhow::Result<()> {
+    pub async fn send_mail(&self, email_config: &super::EmailConfig) -> CompletedResult<()> {
         let email: Message = Message::builder()
             .from(email_config.from.parse().unwrap())
             .to(email_config.to.parse().unwrap())
@@ -71,7 +74,12 @@ impl<'b> Notification<'b> {
 
         match mailer.send(&email) {
             Ok(_) => {}
-            Err(e) => panic!("Could not send email: {:?}", e),
+            Err(e) => {
+                return Err(CompletedError::NotificationError(format!(
+                    "Could not send email: {:?}",
+                    e,
+                )))
+            }
         }
 
         Ok(())
@@ -79,7 +87,7 @@ impl<'b> Notification<'b> {
 
     /// Parse the preferences defined on the configuration file and send noifications to
     /// destinations accordingly
-    pub async fn send(&self) -> anyhow::Result<()> {
+    pub async fn send(&self) -> CompletedResult<()> {
         stream::iter(self.profiles)
             .for_each(|item| async move {
                 let send_to = &self.config.profiles.get(item).unwrap().sendto;
@@ -123,7 +131,7 @@ impl<'b> Notification<'b> {
     }
 
     /// Updates the message to indicate the notification is a trigger and calls self.send()
-    pub async fn send_trigger(&mut self) -> anyhow::Result<()> {
+    pub async fn send_trigger(&mut self) -> CompletedResult<()> {
         self.msg = format!("Triggers invoked {}", self.msg);
         self.send().await?;
         Ok(())
