@@ -1,7 +1,39 @@
+use anyhow::Context;
 use clap::Parser;
-use completed::{helpers, notification, Args};
+use completed::{helpers, notification::Notification, Args, Config};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
+
+/// Send a notification for a line that contains one of the trigger strings,
+/// printing a warning instead of failing when a destination is unreachable
+async fn check_triggers(line: &str, args: &Args, config: &Config) {
+    let Some(triggers) = &args.triggers else {
+        return;
+    };
+
+    let contained_triggers: Vec<&str> = triggers
+        .iter()
+        .map(String::as_str)
+        .filter(|trigger| line.contains(trigger))
+        .collect();
+
+    if contained_triggers.is_empty() {
+        return;
+    }
+
+    if let Err(err) = Notification::new(
+        config,
+        &args.profiles,
+        args.name.as_deref(),
+        "Trigger Detected".to_string(),
+        contained_triggers.join(","),
+    )
+    .send_trigger()
+    .await
+    {
+        eprintln!("completed: failed to send trigger notification: {err}");
+    }
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -10,71 +42,81 @@ async fn main() -> anyhow::Result<()> {
 
     let config = helpers::get_app_config().await?;
 
-    let program = args.run.get(0).cloned().unwrap();
+    // clap guarantees at least one value for `run`
+    let program = args.run.first().cloned().unwrap();
     let program_args = args.run.split_off(1);
 
-    // Spawn the subprocess and pipe its stdout
-    let mut child = Command::new(program)
+    // Spawn the subprocess and pipe its stdout and stderr
+    let mut child = Command::new(&program)
         .args(program_args)
         .stdout(std::process::Stdio::piped())
-        .spawn()?;
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .with_context(|| format!("failed to spawn '{program}'"))?;
 
-    // Take the stdout
-    let stdout = child.stdout.take().expect("Failed to capture stdout");
+    let stdout = child.stdout.take().context("failed to capture stdout")?;
+    let stderr = child.stderr.take().context("failed to capture stderr")?;
 
-    // Wrap stdout in a BufReader and read it line by line
-    let mut reader = BufReader::new(stdout).lines();
+    let mut stdout_lines = BufReader::new(stdout).lines();
+    let mut stderr_lines = BufReader::new(stderr).lines();
 
-    while let Some(line) = reader.next_line().await? {
-        // Stdio::piped() does not write to parent stdout
-        // following line will handle it
-        println!("{}", line);
+    let mut stdout_done = false;
+    let mut stderr_done = false;
 
-        if args.triggers.is_some() {
-            // Check if the line contains a trigger string
-            let contained_triggers: Vec<_> = args
-                .triggers
-                .as_ref()
-                .unwrap()
-                .split(",")
-                .filter(|trigger| line.contains(trigger))
-                .collect();
+    // Read both streams until they close, echoing each line to the matching
+    // parent stream (Stdio::piped() does not write to the terminal) and
+    // checking it for trigger strings
+    while !(stdout_done && stderr_done) {
+        let line = tokio::select! {
+            line = stdout_lines.next_line(), if !stdout_done => match line? {
+                Some(line) => {
+                    println!("{line}");
+                    Some(line)
+                }
+                None => {
+                    stdout_done = true;
+                    None
+                }
+            },
+            line = stderr_lines.next_line(), if !stderr_done => match line? {
+                Some(line) => {
+                    eprintln!("{line}");
+                    Some(line)
+                }
+                None => {
+                    stderr_done = true;
+                    None
+                }
+            },
+        };
 
-            // send notification on each trigger
-            if contained_triggers.len() > 0 {
-                notification::Notification::new(
-                    &config,
-                    &args.profiles.as_ref().unwrap(),
-                    "Trigger Detected".to_string(),
-                    contained_triggers.join(","),
-                )
-                .send_trigger()
-                .await
-                .unwrap();
-            }
+        if let Some(line) = line {
+            check_triggers(&line, &args, &config).await;
         }
     }
 
-    let status = child.wait().await.expect("failed to wait on child");
+    let status = child.wait().await.context("failed to wait on child")?;
     let (title, msg) = match status.code() {
-        Some(code) => {
-            // Handle exit codes
-            match code {
-                0 => ("Process completed".to_string(), "Success".to_string()),
-                1 => ("Process errored".to_string(), "Error".to_string()),
-                _ => ("Something went wrong".to_string(), "Unknown".to_string()),
-            }
-        }
+        Some(0) => ("Process completed".to_string(), "Success".to_string()),
+        Some(code) => (
+            "Process errored".to_string(),
+            format!("Exited with code {code}"),
+        ),
         None => (
-            "Process terminated with unknown reason".to_string(),
-            "Unknown".to_string(),
+            "Process terminated".to_string(),
+            "Killed by a signal".to_string(),
         ),
     };
 
-    // Send the notication for status code
-    notification::Notification::new(&config, &args.profiles.unwrap(), title, msg)
+    // Send the notification for the exit status; a failed notification should
+    // not mask the child's exit code
+    if let Err(err) = Notification::new(&config, &args.profiles, args.name.as_deref(), title, msg)
         .send()
-        .await?;
+        .await
+    {
+        eprintln!("completed: failed to send notification: {err}");
+    }
 
-    Ok(())
+    // Propagate the child's exit code to the caller
+    std::process::exit(status.code().unwrap_or(1));
 }

@@ -19,15 +19,14 @@ pub struct Args {
     #[clap(required = true)]
     pub run: Vec<String>,
 
-    #[arg(short, long)]
-    #[clap(default_value = "default")]
-    pub profiles: Option<Vec<String>>,
+    #[arg(short, long, value_delimiter = ',', default_value = "default")]
+    pub profiles: Vec<String>,
 
     #[arg(short, long)]
-    name: Option<String>,
+    pub name: Option<String>,
 
-    #[arg(short, long)]
-    pub triggers: Option<String>,
+    #[arg(short, long, value_delimiter = ',')]
+    pub triggers: Option<Vec<String>>,
 }
 
 #[derive(Deserialize, Debug)]

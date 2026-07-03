@@ -1,13 +1,12 @@
-use futures::stream::{self, StreamExt};
 use lettre::transport::smtp::authentication::Credentials;
-use lettre::{Message, SmtpTransport, Transport};
+use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 
 use crate::error::CompletedError;
 use crate::CompletedResult;
 
 pub struct Notification<'b> {
     config: &'b super::Config,
-    profiles: &'b Vec<String>,
+    profiles: &'b [String],
     title: String,
     msg: String,
 }
@@ -15,10 +14,16 @@ pub struct Notification<'b> {
 impl<'b> Notification<'b> {
     pub fn new(
         config: &'b super::Config,
-        profiles: &'b Vec<String>,
+        profiles: &'b [String],
+        name: Option<&str>,
         title: String,
         msg: String,
     ) -> Notification<'b> {
+        let title = match name {
+            Some(name) => format!("{name}: {title}"),
+            None => title,
+        };
+
         Notification {
             config,
             profiles,
@@ -30,24 +35,39 @@ impl<'b> Notification<'b> {
     /// Send desktop notifications using the crate `notify_rust`
     /// desktop notification is the default preference
     pub async fn send_desktop(&self) -> CompletedResult<()> {
-        let _ = notify_rust::Notification::new()
+        notify_rust::Notification::new()
             .summary(&self.title)
             .body(&self.msg)
-            .show();
+            .show()
+            .map_err(|e| {
+                CompletedError::NotificationError(format!(
+                    "could not show desktop notification: {e}"
+                ))
+            })?;
 
         Ok(())
     }
 
     /// Send notification to g chat using the webhooks
     pub async fn send_gchat(&self, gchat_config: &super::GChatConfig) -> CompletedResult<()> {
-        let _ = reqwest::Client::new()
-            .post(gchat_config.webhook.to_string())
+        let response = reqwest::Client::new()
+            .post(&gchat_config.webhook)
             .header("Content-Type", "application/json; charset=UTF-8")
             .json(&serde_json::json!({
-                "text": format!("{}\n*{}*",self.title,self.msg),
+                "text": format!("{}\n*{}*", self.title, self.msg),
             }))
             .send()
-            .await;
+            .await
+            .map_err(|e| {
+                CompletedError::NotificationError(format!("could not reach gchat webhook: {e}"))
+            })?;
+
+        if !response.status().is_success() {
+            return Err(CompletedError::NotificationError(format!(
+                "gchat webhook returned {}",
+                response.status()
+            )));
+        }
 
         Ok(())
     }
@@ -55,32 +75,43 @@ impl<'b> Notification<'b> {
     /// Send emails using the smtp
     pub async fn send_mail(&self, email_config: &super::EmailConfig) -> CompletedResult<()> {
         let email: Message = Message::builder()
-            .from(email_config.from.parse().unwrap())
-            .to(email_config.to.parse().unwrap())
+            .from(email_config.from.parse().map_err(|e| {
+                CompletedError::NotificationError(format!(
+                    "invalid 'from' address '{}': {e}",
+                    email_config.from
+                ))
+            })?)
+            .to(email_config.to.parse().map_err(|e| {
+                CompletedError::NotificationError(format!(
+                    "invalid 'to' address '{}': {e}",
+                    email_config.to
+                ))
+            })?)
             .subject(self.title.clone())
-            .body(self.msg.to_string())
-            .unwrap();
+            .body(self.msg.clone())
+            .map_err(|e| {
+                CompletedError::NotificationError(format!("could not build email: {e}"))
+            })?;
 
         let creds: Credentials = Credentials::new(
-            email_config.username.to_string(),
-            email_config.password.to_string(),
+            email_config.username.clone(),
+            email_config.password.clone(),
         );
 
-        let mailer: SmtpTransport = SmtpTransport::relay(&email_config.host.to_string())
-            .unwrap()
+        let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay(&email_config.host)
+            .map_err(|e| {
+                CompletedError::NotificationError(format!(
+                    "invalid smtp host '{}': {e}",
+                    email_config.host
+                ))
+            })?
             .port(email_config.port)
             .credentials(creds)
             .build();
 
-        match mailer.send(&email) {
-            Ok(_) => {}
-            Err(e) => {
-                return Err(CompletedError::NotificationError(format!(
-                    "Could not send email: {:?}",
-                    e,
-                )))
-            }
-        }
+        mailer.send(email).await.map_err(|e| {
+            CompletedError::NotificationError(format!("could not send email: {e}"))
+        })?;
 
         Ok(())
     }
@@ -88,46 +119,56 @@ impl<'b> Notification<'b> {
     /// Parse the preferences defined on the configuration file and send noifications to
     /// destinations accordingly
     pub async fn send(&self) -> CompletedResult<()> {
-        stream::iter(self.profiles)
-            .for_each(|item| async move {
-                let send_to = &self.config.profiles.get(item).unwrap().sendto;
+        let mut failures: Vec<String> = Vec::new();
 
-                let _ = stream::iter(send_to)
-                    .for_each(|cfg| async move {
-                        if let [mode, name] = cfg.split(".").collect::<Vec<_>>()[0..] {
-                            match mode {
-                                "email" => {
-                                    let _ = self
-                                        .send_mail(
-                                            self.config.email.as_ref().unwrap().get(name).unwrap(),
-                                        )
-                                        .await;
-                                }
-                                "gchat" => {
-                                    let _ = self
-                                        .send_gchat(
-                                            self.config.gchat.as_ref().unwrap().get(name).unwrap(),
-                                        )
-                                        .await;
-                                }
-                                _ => {}
-                            }
-                        } else {
-                            match cfg.as_str() {
-                                "desktop" => {
-                                    self.send_desktop().await.unwrap();
-                                }
-                                _ => {
-                                    println!("Please update the profile configuration for {}", cfg)
-                                }
-                            };
-                        }
-                    })
-                    .await;
-            })
-            .await;
+        for profile in self.profiles {
+            let Some(profile_config) = self.config.profiles.get(profile) else {
+                let err = CompletedError::UnknownProfile(profile.clone());
+                eprintln!("completed: {err}");
+                failures.push(err.to_string());
+                continue;
+            };
 
-        Ok(())
+            for destination in &profile_config.sendto {
+                if let Err(err) = self.send_to(destination).await {
+                    eprintln!("completed: failed to notify '{destination}': {err}");
+                    failures.push(format!("{destination}: {err}"));
+                }
+            }
+        }
+
+        if failures.is_empty() {
+            Ok(())
+        } else {
+            Err(CompletedError::NotificationError(failures.join("; ")))
+        }
+    }
+
+    /// Dispatch to the right channel for a `sendto` entry, e.g. "desktop",
+    /// "email.default" or "gchat.work"
+    async fn send_to(&self, destination: &str) -> CompletedResult<()> {
+        match destination.split_once('.') {
+            Some(("email", name)) => {
+                let email_config = self
+                    .config
+                    .email
+                    .as_ref()
+                    .and_then(|configs| configs.get(name))
+                    .ok_or_else(|| CompletedError::UnknownDestination(destination.to_string()))?;
+                self.send_mail(email_config).await
+            }
+            Some(("gchat", name)) => {
+                let gchat_config = self
+                    .config
+                    .gchat
+                    .as_ref()
+                    .and_then(|configs| configs.get(name))
+                    .ok_or_else(|| CompletedError::UnknownDestination(destination.to_string()))?;
+                self.send_gchat(gchat_config).await
+            }
+            None if destination == "desktop" => self.send_desktop().await,
+            _ => Err(CompletedError::UnknownDestination(destination.to_string())),
+        }
     }
 
     /// Updates the message to indicate the notification is a trigger and calls self.send()

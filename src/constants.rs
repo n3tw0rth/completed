@@ -26,10 +26,8 @@ port = 465
 host = ""
 
 [profiles.default]
-print_output = true
 sendto = ["desktop"]
 
 [gchat.default]
-api_key = ""
 webhook = ""
 "#;
