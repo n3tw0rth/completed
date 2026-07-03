@@ -1,105 +1,89 @@
-# Completed
+<div align="center">
 
-A terminal process notification tool that alerts you when long-running commands finish — via desktop notifications, email, or Google Chat.
+# completed
 
-## Overview
+**Get notified when your long-running commands finish.**
 
-Developers working on multiple tasks in parallel often lose track of long-running processes. `completed` wraps any command and sends a notification when it finishes, regardless of whether it succeeded or failed. It works in both desktop environments and headless environments like CI pipelines and VMs.
+[![CI](https://github.com/n3tw0rth/completed/actions/workflows/ci.yml/badge.svg)](https://github.com/n3tw0rth/completed/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/built_with-Rust-orange.svg)](https://www.rust-lang.org/)
 
-## Installation
+</div>
 
-Clone and install from source:
+`completed` wraps any command, streams its output, and sends a notification when it exits — or the moment a trigger string appears. Works on the desktop and in headless environments like CI runners and VMs.
+
+```bash
+completed cargo build --release
+```
+
+## Features
+
+- **Desktop, email, and Google Chat** notifications
+- **Triggers** — notify when a string appears in stdout *or* stderr (e.g. a prompt waiting for input)
+- **Profiles** — group destinations and fan out to several at once
+- **Transparent** — output streams through untouched and the child's exit code is preserved, so it's safe inside scripts and pipelines
+
+## Install
 
 ```bash
 git clone https://github.com/n3tw0rth/completed.git
 cd completed
 ./install.sh
-
-completed -h
-```
-
-For convenience, add an alias to your shell config:
-
-```bash
-# ~/.bashrc or ~/.zshrc
-alias notify='completed'
 ```
 
 ## Usage
 
-Wrap any command by passing it directly to `completed`:
-
 ```bash
-completed ping google.com
+completed [OPTIONS] <COMMAND>...
 ```
 
-A notification is sent once the process exits, indicating success or failure.
-
-### Triggers
-
-Use `-t` / `--triggers` to send additional notifications when specific strings appear in stdout:
-
-```bash
-completed -t PING ping google.com
-```
-
-Multiple trigger strings can be passed as comma-separated values. Phrases with spaces should be quoted:
+| Option | Description |
+| --- | --- |
+| `-t, --triggers <A,B>` | Notify when a string appears in the output |
+| `-p, --profiles <A,B>` | Destination profiles to notify (default: `default`) |
+| `-n, --name <NAME>` | Label prepended to notification titles |
 
 ```bash
+# notify when done
+completed ping -c 5 google.com
+
+# notify when terraform asks for input, quote phrases with spaces
 completed -t approve,'Enter a value' terraform apply
+
+# fan out to multiple profiles, labelled per run
+completed -p default,work -n api-build make release
 ```
 
-### Profiles
-
-Profiles group notification destinations under a named label. Use `-p` / `--profile` to select one or more profiles:
-
-```bash
-completed -p default,work ping google.com
-```
-
-Multiple profiles can be specified as comma-separated values. All destinations defined across the selected profiles will receive notifications.
-
-## Configuration
-
-Place your configuration in the appropriate config file. Below is a full example:
-
-```toml
-[email.default]
-from     = "acme@dev.com"
-to       = "me@dev.com"
-username = ""
-password = ""
-port     = 465
-host     = ""
-
-[email.work]
-from     = "acme@dev.com"
-to       = "pm@dev.com"
-username = ""
-password = ""
-port     = 465
-host     = ""
-
-[gchat.work]
-api_key = ""
-webhook = ""
-
-[profiles.default]
-sendto = ["desktop", "email.default"]
-
-[profiles.work]
-sendto = ["desktop", "gchat.work", "email.work"]
-```
-
-## Example Workflow
+Handy as an alias:
 
 ```bash
 alias notify='completed'
 alias terraform='notify -t approve,"Enter a value" terraform'
 ```
 
-With this setup, running `terraform apply` will notify you when Terraform requests input or when the apply completes.
+## Configuration
+
+A default config is created at `~/.config/completed/config.toml` on first run. Profiles map to one or more destinations: `desktop`, `email.<name>`, or `gchat.<name>`.
+
+```toml
+[profiles.default]
+sendto = ["desktop"]
+
+[profiles.work]
+sendto = ["desktop", "email.work", "gchat.work"]
+
+[email.work]
+from     = "ci@dev.com"
+to       = "me@dev.com"
+username = ""
+password = ""
+host     = "smtp.dev.com"
+port     = 465
+
+[gchat.work]
+webhook = "https://chat.googleapis.com/v1/spaces/..."
+```
 
 ## License
 
-See [LICENSE](LICENSE) for details.
+[Apache-2.0](LICENSE)
