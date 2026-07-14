@@ -1,8 +1,8 @@
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 
-use crate::error::CompletedError;
-use crate::CompletedResult;
+use crate::error::HarkError;
+use crate::HarkResult;
 
 pub struct Notification<'b> {
     config: &'b super::Config,
@@ -34,13 +34,13 @@ impl<'b> Notification<'b> {
 
     /// Send desktop notifications using the crate `notify_rust`
     /// desktop notification is the default preference
-    pub async fn send_desktop(&self) -> CompletedResult<()> {
+    pub async fn send_desktop(&self) -> HarkResult<()> {
         notify_rust::Notification::new()
             .summary(&self.title)
             .body(&self.msg)
             .show()
             .map_err(|e| {
-                CompletedError::NotificationError(format!(
+                HarkError::NotificationError(format!(
                     "could not show desktop notification: {e}"
                 ))
             })?;
@@ -49,7 +49,7 @@ impl<'b> Notification<'b> {
     }
 
     /// Send notification to g chat using the webhooks
-    pub async fn send_gchat(&self, gchat_config: &super::GChatConfig) -> CompletedResult<()> {
+    pub async fn send_gchat(&self, gchat_config: &super::GChatConfig) -> HarkResult<()> {
         let response = reqwest::Client::new()
             .post(&gchat_config.webhook)
             .header("Content-Type", "application/json; charset=UTF-8")
@@ -59,11 +59,11 @@ impl<'b> Notification<'b> {
             .send()
             .await
             .map_err(|e| {
-                CompletedError::NotificationError(format!("could not reach gchat webhook: {e}"))
+                HarkError::NotificationError(format!("could not reach gchat webhook: {e}"))
             })?;
 
         if !response.status().is_success() {
-            return Err(CompletedError::NotificationError(format!(
+            return Err(HarkError::NotificationError(format!(
                 "gchat webhook returned {}",
                 response.status()
             )));
@@ -73,16 +73,16 @@ impl<'b> Notification<'b> {
     }
 
     /// Send emails using the smtp
-    pub async fn send_mail(&self, email_config: &super::EmailConfig) -> CompletedResult<()> {
+    pub async fn send_mail(&self, email_config: &super::EmailConfig) -> HarkResult<()> {
         let email: Message = Message::builder()
             .from(email_config.from.parse().map_err(|e| {
-                CompletedError::NotificationError(format!(
+                HarkError::NotificationError(format!(
                     "invalid 'from' address '{}': {e}",
                     email_config.from
                 ))
             })?)
             .to(email_config.to.parse().map_err(|e| {
-                CompletedError::NotificationError(format!(
+                HarkError::NotificationError(format!(
                     "invalid 'to' address '{}': {e}",
                     email_config.to
                 ))
@@ -90,7 +90,7 @@ impl<'b> Notification<'b> {
             .subject(self.title.clone())
             .body(self.msg.clone())
             .map_err(|e| {
-                CompletedError::NotificationError(format!("could not build email: {e}"))
+                HarkError::NotificationError(format!("could not build email: {e}"))
             })?;
 
         let creds: Credentials = Credentials::new(
@@ -100,7 +100,7 @@ impl<'b> Notification<'b> {
 
         let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay(&email_config.host)
             .map_err(|e| {
-                CompletedError::NotificationError(format!(
+                HarkError::NotificationError(format!(
                     "invalid smtp host '{}': {e}",
                     email_config.host
                 ))
@@ -110,7 +110,7 @@ impl<'b> Notification<'b> {
             .build();
 
         mailer.send(email).await.map_err(|e| {
-            CompletedError::NotificationError(format!("could not send email: {e}"))
+            HarkError::NotificationError(format!("could not send email: {e}"))
         })?;
 
         Ok(())
@@ -118,20 +118,20 @@ impl<'b> Notification<'b> {
 
     /// Parse the preferences defined on the configuration file and send noifications to
     /// destinations accordingly
-    pub async fn send(&self) -> CompletedResult<()> {
+    pub async fn send(&self) -> HarkResult<()> {
         let mut failures: Vec<String> = Vec::new();
 
         for profile in self.profiles {
             let Some(profile_config) = self.config.profiles.get(profile) else {
-                let err = CompletedError::UnknownProfile(profile.clone());
-                eprintln!("completed: {err}");
+                let err = HarkError::UnknownProfile(profile.clone());
+                eprintln!("hark: {err}");
                 failures.push(err.to_string());
                 continue;
             };
 
             for destination in &profile_config.sendto {
                 if let Err(err) = self.send_to(destination).await {
-                    eprintln!("completed: failed to notify '{destination}': {err}");
+                    eprintln!("hark: failed to notify '{destination}': {err}");
                     failures.push(format!("{destination}: {err}"));
                 }
             }
@@ -140,13 +140,13 @@ impl<'b> Notification<'b> {
         if failures.is_empty() {
             Ok(())
         } else {
-            Err(CompletedError::NotificationError(failures.join("; ")))
+            Err(HarkError::NotificationError(failures.join("; ")))
         }
     }
 
     /// Dispatch to the right channel for a `sendto` entry, e.g. "desktop",
     /// "email.default" or "gchat.work"
-    async fn send_to(&self, destination: &str) -> CompletedResult<()> {
+    async fn send_to(&self, destination: &str) -> HarkResult<()> {
         match destination.split_once('.') {
             Some(("email", name)) => {
                 let email_config = self
@@ -154,7 +154,7 @@ impl<'b> Notification<'b> {
                     .email
                     .as_ref()
                     .and_then(|configs| configs.get(name))
-                    .ok_or_else(|| CompletedError::UnknownDestination(destination.to_string()))?;
+                    .ok_or_else(|| HarkError::UnknownDestination(destination.to_string()))?;
                 self.send_mail(email_config).await
             }
             Some(("gchat", name)) => {
@@ -163,16 +163,16 @@ impl<'b> Notification<'b> {
                     .gchat
                     .as_ref()
                     .and_then(|configs| configs.get(name))
-                    .ok_or_else(|| CompletedError::UnknownDestination(destination.to_string()))?;
+                    .ok_or_else(|| HarkError::UnknownDestination(destination.to_string()))?;
                 self.send_gchat(gchat_config).await
             }
             None if destination == "desktop" => self.send_desktop().await,
-            _ => Err(CompletedError::UnknownDestination(destination.to_string())),
+            _ => Err(HarkError::UnknownDestination(destination.to_string())),
         }
     }
 
     /// Updates the message to indicate the notification is a trigger and calls self.send()
-    pub async fn send_trigger(&mut self) -> CompletedResult<()> {
+    pub async fn send_trigger(&mut self) -> HarkResult<()> {
         self.msg = format!("Triggers invoked {}", self.msg);
         self.send().await?;
         Ok(())

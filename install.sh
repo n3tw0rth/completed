@@ -1,3 +1,3 @@
 set -e
 cargo build --release
-sudo cp ./target/release/completed  /usr/bin/
+sudo cp ./target/release/hark  /usr/bin/

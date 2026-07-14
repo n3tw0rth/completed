@@ -1,6 +1,6 @@
 use anyhow::Context;
 use clap::Parser;
-use completed::{helpers, notification::Notification, Args, Config};
+use hark::{helpers, notification::Notification, Args, Config};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
@@ -31,7 +31,7 @@ async fn check_triggers(line: &str, args: &Args, config: &Config) {
     .send_trigger()
     .await
     {
-        eprintln!("completed: failed to send trigger notification: {err}");
+        eprintln!("hark: failed to send trigger notification: {err}");
     }
 }
 
@@ -114,7 +114,7 @@ async fn main() -> anyhow::Result<()> {
         .send()
         .await
     {
-        eprintln!("completed: failed to send notification: {err}");
+        eprintln!("hark: failed to send notification: {err}");
     }
 
     // Propagate the child's exit code to the caller
