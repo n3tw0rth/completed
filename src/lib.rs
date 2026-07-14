@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use clap::Parser;
 use serde::Deserialize;
 
-use self::error::CompletedError;
+use self::error::HarkError;
 
 pub mod constants;
 pub mod error;
@@ -53,4 +53,4 @@ pub struct EmailConfig {
     host: String,
 }
 
-pub type CompletedResult<T> = Result<T, CompletedError>;
+pub type HarkResult<T> = Result<T, HarkError>;
