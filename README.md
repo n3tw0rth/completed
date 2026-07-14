@@ -57,8 +57,7 @@ hark -p default,work -n api-build make release
 Handy as an alias:
 
 ```bash
-alias notify='hark'
-alias terraform='notify -t approve,"Enter a value" terraform'
+alias terraform='hark -t approve,"Enter a value" terraform'
 ```
 
 ## Configuration
